@@ -1,9 +1,8 @@
 
 import React, { useMemo } from 'react';
 import { 
-  BarChart2, 
   Copy,
-  RefreshCw,
+  FileText,
   Star,
   CheckCircle2,
   Layers
@@ -15,10 +14,9 @@ interface SummarySectionProps {
   ratings: RatingsMap;
   focusAreas: FocusAreasMap;
   totalSkills: number;
-  onReset: () => void;
 }
 
-const SummarySection: React.FC<SummarySectionProps> = ({ ratings, focusAreas, totalSkills, onReset }) => {
+const SummarySection: React.FC<SummarySectionProps> = ({ ratings, focusAreas, totalSkills }) => {
   const counts = useMemo(() => {
     const c = { basic: 0, intermediate: 0, advanced: 0, na: 0, unrated: 0, focused: 0 };
     const ratedIds = Object.keys(ratings);
@@ -60,8 +58,6 @@ const SummarySection: React.FC<SummarySectionProps> = ({ ratings, focusAreas, to
         tab.data.forEach(group => {
             group.skills.forEach(skill => {
               const ratingValue = ratings[skill.id];
-              // Removed the skip condition to ensure all skills are exported even if not filled.
-              
               const ratingLabel = RATINGS.find(r => r.value === ratingValue)?.label || '-';
               const isFocused = focusAreas[skill.id] ? "YES" : "-";
               
@@ -76,18 +72,79 @@ const SummarySection: React.FC<SummarySectionProps> = ({ ratings, focusAreas, to
     textArea.select();
     try {
       document.execCommand('copy');
-      alert("Comprehensive report (including all skills) copied to clipboard! You can paste this into a spreadsheet or document.");
+      alert("Results copied to clipboard!");
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
     document.body.removeChild(textArea);
   };
 
+  const exportToCSV = () => {
+    const dateStr = new Date().toLocaleDateString();
+    const completionPercent = totalSkills > 0 ? Math.round(((totalSkills - counts.unrated) / totalSkills) * 100) : 0;
+    
+    const headerLines = [
+      [`CAPABILITY MATRIX ASSESSMENT - ${dateStr}`],
+      [`====================================================`],
+      [],
+      [`OVERVIEW`],
+      [`----------------------------`],
+      [`Completion:   ${completionPercent}%`],
+      [`Focus Areas:  ${counts.focused}`],
+      [`Advanced:     ${counts.advanced}`],
+      [`Intermediate: ${counts.intermediate}`],
+      [`Basic:        ${counts.basic}`],
+      [`N/A:          ${counts.na}`],
+      [],
+      [`DETAILED BREAKDOWN (ALL SKILLS)`],
+      [`----------------------------`],
+      []
+    ];
+
+    const tableHeaders = ['Category', 'Group', 'Skill', 'Rating', 'Focus Area'];
+    const tableRows: string[][] = [];
+
+    TABS.forEach(tab => {
+      tab.data.forEach(group => {
+        group.skills.forEach(skill => {
+          const ratingValue = ratings[skill.id];
+          const ratingLabel = RATINGS.find(r => r.value === ratingValue)?.label || '-';
+          const isFocused = focusAreas[skill.id] ? "YES" : "-";
+          
+          tableRows.push([
+            tab.label,
+            group.group,
+            skill.name,
+            ratingLabel,
+            isFocused
+          ]);
+        });
+      });
+    });
+
+    const formatRow = (row: string[]) => row.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(',');
+
+    const csvContent = [
+      ...headerLines.map(line => formatRow(line)),
+      formatRow(tableHeaders),
+      ...tableRows.map(row => formatRow(row))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `capability_matrix_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const completionPercent = totalSkills > 0 ? Math.round(((totalSkills - counts.unrated) / totalSkills) * 100) : 0;
 
   return (
     <div className="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 border border-gray-100 p-8 mb-8 relative overflow-hidden">
-      {/* Decorative Background element */}
       <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
       
       <div className="relative z-10">
@@ -102,10 +159,17 @@ const SummarySection: React.FC<SummarySectionProps> = ({ ratings, focusAreas, to
           <div className="flex flex-wrap gap-3">
             <button 
               onClick={copyToClipboard}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all text-sm font-bold active:scale-95"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-all text-sm font-bold active:scale-95 shadow-sm"
             >
               <Copy size={16} />
               Copy Results
+            </button>
+            <button 
+              onClick={exportToCSV}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all text-sm font-bold active:scale-95 shadow-md shadow-indigo-200"
+            >
+              <FileText size={16} />
+              Export to CSV
             </button>
           </div>
         </div>

@@ -2,7 +2,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart2, 
-  RefreshCw,
   Search,
   PenTool
 } from 'lucide-react';
@@ -26,15 +25,23 @@ export default function App() {
   
   const [ratings, setRatings] = useState<RatingsMap>(() => {
     const saved = localStorage.getItem('matrix_ratings');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
   });
   const [focusAreas, setFocusAreas] = useState<FocusAreasMap>(() => {
     const saved = localStorage.getItem('matrix_focus');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
   });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Persist state to local storage
+  // Persist state to local storage via effects to ensure state is the source of truth
   useEffect(() => {
     localStorage.setItem('matrix_ratings', JSON.stringify(ratings));
   }, [ratings]);
@@ -61,8 +68,6 @@ export default function App() {
     if (window.confirm("Are you sure you want to clear all ratings and focus areas? This will reset your entire assessment.")) {
       setRatings({});
       setFocusAreas({});
-      localStorage.removeItem('matrix_ratings');
-      localStorage.removeItem('matrix_focus');
     }
   };
 
@@ -118,13 +123,6 @@ export default function App() {
                 className="pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 w-48 transition-all"
               />
             </div>
-            <button 
-              onClick={handleReset}
-              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-              title="Reset Assessment"
-            >
-              <RefreshCw size={18} />
-            </button>
           </div>
         </div>
       </header>
@@ -135,7 +133,6 @@ export default function App() {
             ratings={ratings} 
             focusAreas={focusAreas}
             totalSkills={totalSkills} 
-            onReset={handleReset} 
         />
 
         {/* Tab Navigation */}
